@@ -1664,7 +1664,7 @@ int main(int argc, char **argv)
 
             // heartbeat information
 
-            cout << "11 starting heartbeats" << endl;
+            // cout << "11 starting heartbeats" << endl;
 
             if (show_heartbeat && (ooo_cpu[i].num_retired >= ooo_cpu[i].next_print_instruction))
             {
@@ -1684,7 +1684,7 @@ int main(int argc, char **argv)
                 ooo_cpu[i].last_sim_cycle = current_core_cycle[i];
             }
 
-            cout << "12 heartbeats done" << endl;
+            // cout << "12 heartbeats done" << endl;
 
             // check for deadlock
             if (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].ip && (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle + DEADLOCK_CYCLE) <= current_core_cycle[i])

@@ -256,11 +256,16 @@ public:
         // Addition by Neelu begin
 
         // todododo
-        lTTL = NUM_SET * NUM_WAY * NUM_SET / 2;
-        uTTL = 3 * NUM_SET * NUM_WAY * NUM_SET / 2;
+        lTTL = NUM_WAY * NUM_SET / 2;
+        uTTL = 5 * NUM_WAY * NUM_SET / 2;
         rTTL = NUM_SET;
-        lRate = 1;
-        uRate = uTTL;
+        cout << NUM_WAY << " " << NUM_SET << endl;
+        cout << NUM_WAY*NUM_SET << endl;
+        cout << "[TTL] " << lTTL << " " << uTTL << endl;
+        cout << rTTL << endl;
+        uRate = uTTL/5;
+        lRate =  NUM_SET/10;
+        cout << uRate<<endl;
 
         //	pq_full = 0;
         //	mshr_full = 0;
@@ -291,7 +296,7 @@ public:
         instr_evicting_instr = 0;
         transl_evicting_transl = 0;
         last_rttl_update = 0;
-        rttl_update_threshold = 10000; // todododo
+        rttl_update_threshold = 100000; // todododo
 
         for (int i = 0; i < NUM_CPUS; i++)
         {
@@ -448,8 +453,8 @@ public:
 
         ttl_victim(uint32_t cpu, uint64_t instr_id, uint32_t &set, uint64_t ip, uint64_t full_addr, uint32_t type);
 
-    vector<uint64_t> get_dynamic_set(uint64_t);
-    vector<uint64_t> get_tags(uint64_t);
+    vector<uint32_t> get_dynamic_set(uint64_t);
+    vector<uint32_t> get_tags(uint64_t);
     pair<uint32_t, uint32_t> check_hit_randomized(PACKET *);
 };
 

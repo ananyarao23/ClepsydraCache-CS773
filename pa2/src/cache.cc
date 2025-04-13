@@ -15,6 +15,14 @@ uint8_t L2C_BYPASS_KNOB = 0; // Neelu: Set to 1: Bypass Instructions 2: Bypass D
 // #define CHECK_DATA_HIT_ON_STLB_HIT	//Neelu: Adding to check where the corresponding data is present in case of an STLB hit
 
 // #define STLB_HINT_TO_L2_PREF
+string get_type(uint8_t type)
+{
+    if (type == IS_LLC)
+    {
+        return "LLC";
+    }
+    return "Nah";
+}
 
 // #define NOTIFY_L1D_OF_DTLB_EVICTION
 
@@ -65,6 +73,7 @@ void CACHE::handle_fill()
         {
             // cout << "llc" << endl;
             way = (this->*find_randomized_victim)(fill_cpu, MSHR.entry[mshr_index].instr_id, set, MSHR.entry[mshr_index].ip, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].type);
+            // cout << "// [DATA-FILL]" << MSHR.entry[mshr_index].full_addr << " " << set << " " << way << endl;
         }
         // cout << "way and set set" << endl;
         // Neelu: Fill Packet type for L2
@@ -79,6 +88,7 @@ void CACHE::handle_fill()
             else
                 fill_packet_type = 3;
         }
+        // cout << "f1" << endl;
 
 #ifdef L2_BYPASS
 
@@ -142,7 +152,7 @@ void CACHE::handle_fill()
 #ifdef LLC_BYPASS
         if ((cache_type == IS_LLC) && (way == LLC_WAY))
         { // this is a bypass that does not fill the LLC
-
+            // todododo
             // update replacement policy
             (this->*update_replacement_state)(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
 
@@ -195,6 +205,8 @@ void CACHE::handle_fill()
 
             return; // return here, no need to process further in this function
         }
+        // cout << "f2" << endl;
+
 #endif
 
         uint8_t do_fill = 1;
@@ -374,6 +386,7 @@ void CACHE::handle_fill()
                 }
             }
         }
+        // cout << "f3" << endl;
 
         // Neelu: Calculating Instruction and Data Conflicts in L2C
         if (cache_type == IS_L2C && block[set][way].valid)
@@ -400,53 +413,72 @@ void CACHE::handle_fill()
             else
                 assert(0); // What else could there be? No other case, right?
         }
-
+        // cout << "f4" << endl;
         // is this dirty?
+        // cout << block[set][way].dirty << " " << block[set][way].full_addr << " " << set << " " << way << endl;
+        // cout.flush();
         if (block[set][way].dirty)
         {
-
+            // cout << "hjwgfbcsjh " << endl;
             // check if the lower level WQ has enough room to keep this writeback request
             if (lower_level)
             {
+                // cout << "a1" << endl;
                 if (lower_level->get_occupancy(2, block[set][way].address) == lower_level->get_size(2, block[set][way].address))
                 {
 
                     // lower level WQ is full, cannot replace this victim
                     do_fill = 0;
+                    // cout << "a2" << endl;
+
                     lower_level->increment_WQ_FULL(block[set][way].address);
                     STALL[MSHR.entry[mshr_index].type]++;
+                    // cout << "a3" << endl;
 
                     DP(if (warmup_complete[fill_cpu]) {
                             cout << "[" << NAME << "] " << __func__ << "do_fill: " << +do_fill;
                             cout << " lower level wq is full!" << " fill_addr: " << hex << MSHR.entry[mshr_index].address;
                             cout << " victim_addr: " << block[set][way].tag << dec << endl; });
+                    cout << "a4" << endl;
                 }
                 else
                 {
                     PACKET writeback_packet;
+                    // cout << "a5" << endl;
                     // TODOdodo (change the fields for llc)
                     writeback_packet.fill_level = fill_level << 1;
+                    // cout << "a6" << endl;
                     writeback_packet.cpu = fill_cpu;
+                    // cout << "a7" << endl;
                     writeback_packet.address = block[set][way].address;
+                    // cout << "a8" << endl;
                     writeback_packet.full_addr = block[set][way].full_addr;
+                    // cout << "a9" << endl;
                     writeback_packet.data = block[set][way].data;
+                    // cout << "a10" << endl;
                     writeback_packet.instr_id = MSHR.entry[mshr_index].instr_id;
+                    // cout << "a11" << endl;
                     writeback_packet.ip = 0; // writeback does not have ip
+                    // cout << "a12" << endl;
                     writeback_packet.type = WRITEBACK;
+                    // cout << "a13" << endl;
                     writeback_packet.event_cycle = current_core_cycle[fill_cpu];
-
+                    // cout << "a14" << endl;
                     lower_level->add_wq(&writeback_packet);
                 }
+                // cout << "a16" << endl;
             }
 #ifdef SANITY_CHECK
             else
             {
                 // sanity check
+                // cout << "a17" << endl;
                 if (cache_type != IS_STLB)
                     assert(0);
             }
 #endif
         }
+        // cout << "f5" << endl;
 
         if (do_fill)
         {
@@ -566,7 +598,9 @@ void CACHE::handle_fill()
             if (cache_type == IS_L1D)
             {
                 if (MSHR.entry[mshr_index].type == RFO)
+                {
                     block[set][way].dirty = 1;
+                }
             }
 
             // Neelu: Adding condition to ensure that STLB does not insert instruction translations to Processed queue.
@@ -727,6 +761,7 @@ void CACHE::handle_fill()
 
             update_fill_cycle();
         }
+        // cout << "f6" << endl;
     }
     // cout << "exiting handle fill" << endl;
 }
@@ -779,6 +814,7 @@ void CACHE::handle_writeback()
             pair<uint32_t, uint32_t> p = check_hit_randomized(&WQ.entry[index]);
             set = p.first;
             way = p.second;
+            // cout << "// [DATA-WB]" << WQ.entry[index].full_addr << " " << set << " " << way << endl;
         }
 
         // Neelu: For Ideal Critical IP Prefetcher
@@ -837,10 +873,11 @@ void CACHE::handle_writeback()
             // COLLECT STATS
             sim_hit[writeback_cpu][WQ.entry[index].type]++;
             sim_access[writeback_cpu][WQ.entry[index].type]++;
+            // cout << "[AA-WB]" << " " << sim_access[writeback_cpu][WQ.entry[index].type] << " " << sim_hit[writeback_cpu][WQ.entry[index].type] << " " << writeback_cpu << " " << get_type(cache_type) << endl;
 
             // mark dirty
             block[set][way].dirty = 1;
-
+            // cout << "[DIRTY-WB1] " << set << " " << way << " " << block[set][way].full_addr << endl;
             if (cache_type == IS_ITLB)
                 WQ.entry[index].instruction_pa = block[set][way].data;
             else if (cache_type == IS_DTLB)
@@ -994,8 +1031,9 @@ void CACHE::handle_writeback()
             else
             {
                 // find victim
-                uint32_t set,way;;
-                if(cache_type != IS_LLC)
+                uint32_t set, way;
+                ;
+                if (cache_type != IS_LLC)
                 {
                     // cout << "third" << endl;
                     set = get_set(WQ.entry[index].address);
@@ -1004,6 +1042,7 @@ void CACHE::handle_writeback()
                 else
                 {
                     way = (this->*find_randomized_victim)(writeback_cpu, WQ.entry[index].instr_id, set, WQ.entry[index].ip, WQ.entry[index].full_addr, WQ.entry[index].type);
+                    // // cout << "[LLC WRITEBACK] " << set << " " << way << endl;
                 }
 
 #ifdef LLC_BYPASS
@@ -1124,7 +1163,7 @@ void CACHE::handle_writeback()
 
                     // mark dirty
                     block[set][way].dirty = 1;
-
+                    // cout << "[DIRTY-WB2] " << set << " " << way << " " << block[set][way].full_addr << endl;
                     // check fill level
                     if (WQ.entry[index].fill_level < fill_level)
                     {
@@ -1510,6 +1549,7 @@ void CACHE::handle_read()
                 pair<uint32_t, uint32_t> p = check_hit_randomized(&RQ.entry[index]);
                 set = p.first;
                 way = p.second;
+                // cout << "// [DATA-RD]" << RQ.entry[index].full_addr << " " << set << " " << way << endl;
             }
 
             // Neelu: For Ideal Critical IP Prefetcher
@@ -1748,6 +1788,7 @@ void CACHE::handle_read()
                 // update prefetcher on load instruction
                 if (RQ.entry[index].type == LOAD)
                 {
+
                     assert(cache_type != IS_ITLB || cache_type != IS_DTLB || cache_type != IS_STLB);
                     if (cache_type == IS_L1I)
                         l1i_prefetcher_cache_operate(read_cpu, RQ.entry[index].ip, 1, block[set][way].prefetch);
@@ -1766,6 +1807,7 @@ void CACHE::handle_read()
                 }
                 else if (RQ.entry[index].type == LOAD_TRANSLATION)
                 {
+
                     assert(cache_type != IS_L1I || cache_type != IS_L1D || cache_type != IS_L2C || cache_type != IS_LLC);
                     if (cache_type == IS_ITLB)
                     {
@@ -1805,6 +1847,7 @@ void CACHE::handle_read()
                 // COLLECT STATS
                 sim_hit[read_cpu][RQ.entry[index].type]++;
                 sim_access[read_cpu][RQ.entry[index].type]++;
+                // cout << "[AA-RD] " << sim_access[read_cpu][RQ.entry[index].type] << " " << sim_hit[read_cpu][RQ.entry[index].type] << " " << read_cpu << " " << get_type(cache_type) << endl;
 
                 // check fill level
                 // data should be updated (for TLBs) in case of hit
@@ -2287,7 +2330,7 @@ void CACHE::handle_read()
                             // Neelu: set the late bit
                             if (cache_type == IS_L1D)
                             {
-                                // cout<<"Neelu: MSHR entry late_pref INC"<<endl;
+                                cout << "Neelu: MSHR entry late_pref INC" << endl;
                                 MSHR.entry[mshr_index].late_pref = 1;
                                 late_prefetch++;
                             }
@@ -2488,7 +2531,7 @@ void CACHE::handle_prefetch()
 
             if (cache_type != IS_LLC)
             {
-                cout << "fifth" << endl;
+                // cout << "fifth" << endl;
                 set = get_set(PQ.entry[index].address);
                 way = check_hit(&PQ.entry[index]);
             }
@@ -2509,6 +2552,7 @@ void CACHE::handle_prefetch()
                 sim_hit[prefetch_cpu][PQ.entry[index].type]++;
                 sim_access[prefetch_cpu][PQ.entry[index].type]++;
 
+                // cout << "[AA-PF] " << sim_access[prefetch_cpu][PQ.entry[index].type] << " " << sim_hit[prefetch_cpu][PQ.entry[index].type] << " " << prefetch_cpu << " " << get_type(cache_type) << endl;
                 // run prefetcher on prefetches from higher caches
                 if (PQ.entry[index].pf_origin_level < fill_level)
                 {
@@ -2897,15 +2941,15 @@ void CACHE::operate()
 uint32_t CACHE::get_set(uint64_t address)
 {
 
-    // cout << "get_set" << endl; 
+    // cout << "get_set" << endl;
 #ifdef PUSH_DTLB_PB
     if (cache_type == IS_DTLB_PB)
         return 0;
 
     else
 #endif
-    // cout << "get_set_done" << endl;
-        return (uint32_t)(address & ((1 << lg2(NUM_SET)) - 1));
+        // cout << "get_set_done" << endl;
+    return (uint32_t)(address & ((1 << lg2(NUM_SET)) - 1));
 }
 
 uint32_t CACHE::get_way(uint64_t address, uint32_t set)
@@ -2988,6 +3032,7 @@ void CACHE::fill_cache(uint32_t set, uint32_t way, PACKET *packet)
     if (block[set][way].valid == 0)
         block[set][way].valid = 1;
     block[set][way].dirty = 0;
+    // cout << "[DIRTY-FC-0] " << set << " " << way << " " << block[set][way].full_addr << endl;
     block[set][way].prefetch = (packet->type == PREFETCH || packet->type == PREFETCH_TRANSLATION || packet->type == TRANSLATION_FROM_L1D) ? 1 : 0;
     block[set][way].used = 0;
 
@@ -3097,7 +3142,7 @@ int CACHE::check_hit(PACKET *packet)
 pair<uint32_t, uint32_t> CACHE::check_hit_randomized(PACKET *packet)
 {
     // cout << "check_hit_randomized" << endl;
-    vector<uint64_t> dynamic_set = get_dynamic_set(packet->full_addr);
+    vector<uint32_t> dynamic_set = get_dynamic_set(packet->full_addr);
     // vector<uint64_t> tags = get_tags(packet->full_addr);
 
     uint32_t curr_set, curr_way;
@@ -3141,7 +3186,7 @@ int CACHE::invalidate_entry(uint64_t inval_addr)
     // cout << "invalidate_entry" << endl;
     if (cache_type != IS_LLC)
     {
-        cout << "7th" << endl;
+        // cout << "7th" << endl;
         uint32_t set = get_set(inval_addr);
         int match_way = -1;
 
@@ -3176,7 +3221,7 @@ int CACHE::invalidate_entry(uint64_t inval_addr)
     else
     {
         cerr << "invalidate_entry called on LLC! probably from page table invalidation" << endl;
-        cout << "8th" << endl;
+        // cout << "8th" << endl;
         uint32_t set = get_set(inval_addr);
         int match_way = -1;
 
@@ -4489,7 +4534,7 @@ void CACHE::update_rttl(bool conflict)
             rTTL *= 2;
         else
             rTTL -= 1;
+        rTTL = max(lRate, rTTL);
+        rTTL = min(uRate, rTTL);
     }
-    rTTL = max(lRate, rTTL);
-    rTTL = min(uRate, rTTL);
 }
