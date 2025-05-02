@@ -49,7 +49,7 @@ void O3_CPU::handle_access(uint64_t addr, bool is_read)
     instr.branch_prediction_made = 0;
     instr.branch_type = NOT_BRANCH;
 
-    instr.num_reg_ops = 0;
+    instr.num_reg_ops = 1;
     instr.num_mem_ops = 1;
     instr.is_memory = 1;
 
@@ -1432,16 +1432,17 @@ void O3_CPU::schedule_instruction()
 void O3_CPU::do_scheduling(uint32_t rob_index)
 {
     ROB.entry[rob_index].reg_ready = 1; // reg_ready will be reset to 0 if there is RAW dependency 
-
+    cout << "do schedule1" << endl;
     reg_dependency(rob_index);
     ROB.next_schedule = (rob_index == (ROB.SIZE - 1)) ? 0 : (rob_index + 1);
-
+    cout << "do schedule2" << endl;
     if (ROB.entry[rob_index].is_memory)
         ROB.entry[rob_index].scheduled = INFLIGHT;
     else {
         ROB.entry[rob_index].scheduled = COMPLETED;
 
         // ADD LATENCY
+        cout << "do schedule3" << endl;
         if (ROB.entry[rob_index].event_cycle < current_core_cycle[cpu])
             ROB.entry[rob_index].event_cycle = current_core_cycle[cpu] + SCHEDULING_LATENCY;
         else
@@ -1638,6 +1639,7 @@ void O3_CPU::do_execution(uint32_t rob_index)
 
 void O3_CPU::schedule_memory_instruction()
 {
+    cout << "schedule memory instruction" << endl;
     if ((ROB.head == ROB.tail) && ROB.occupancy == 0)
         return;
 
@@ -1656,7 +1658,10 @@ void O3_CPU::schedule_memory_instruction()
                 break;
 
             if (ROB.entry[i].is_memory && ROB.entry[i].reg_ready && (ROB.entry[i].scheduled == INFLIGHT))
+            {
+                cout << "calling do_memory_scheduling" << endl;
                 do_memory_scheduling(i);
+            }
         }
     }
     else {
@@ -1669,7 +1674,10 @@ void O3_CPU::schedule_memory_instruction()
                 break;
 
             if (ROB.entry[i].is_memory && ROB.entry[i].reg_ready && (ROB.entry[i].scheduled == INFLIGHT))
+            {
+                cout << "calling do_memory_scheduling" << endl;
                 do_memory_scheduling(i);
+            }
         }
         for (uint32_t i=0; i<limit; i++) {
 
@@ -1680,7 +1688,10 @@ void O3_CPU::schedule_memory_instruction()
                 break;
 
             if (ROB.entry[i].is_memory && ROB.entry[i].reg_ready && (ROB.entry[i].scheduled == INFLIGHT))
+            {
+                cout << "calling do_memory_scheduling" << endl;
                 do_memory_scheduling(i);
+            }
         }
     }
    // //DP ( if (warmup_complete[cpu]) {	//*******************************************************************************************
@@ -1703,7 +1714,10 @@ void O3_CPU::do_memory_scheduling(uint32_t rob_index)
     if (not_available == 0) {
         ROB.entry[rob_index].scheduled = COMPLETED;
         if (ROB.entry[rob_index].executed == 0) // it could be already set to COMPLETED due to store-to-load forwarding
+        {
+            cout << "execution set as inflight" << endl;
             ROB.entry[rob_index].executed  = INFLIGHT;
+        }
 
         //DP (if (warmup_complete[cpu]) {
         //cout << "[ROB] " << __func__ << " instr_id: " << ROB.entry[rob_index].instr_id << " rob_index: " << rob_index;
@@ -2027,16 +2041,18 @@ void O3_CPU::add_store_queue(uint32_t rob_index, uint32_t data_index)
 void O3_CPU::operate_lsq()
 {
     // handle store
+    cout << "operate_lsq" << endl;
     uint32_t store_issued = 0, num_iteration = 0;
 
 
     //@Vishal: VIPT Execute store without sending translation request to DTLB.
+    cout << store_issued << " " << SQ_WIDTH << endl;
     while (store_issued < SQ_WIDTH) {
         if (RTS0[RTS0_head] < SQ_SIZE) {
             uint32_t sq_index = RTS0[RTS0_head];
             if (SQ.entry[sq_index].event_cycle <= current_core_cycle[cpu]) {
             	execute_store(SQ.entry[sq_index].rob_index, sq_index, SQ.entry[sq_index].data_index);
-
+                cout << "RTS0 is being updated " << RTS0_head << endl;
             	RTS0[RTS0_head] = SQ_SIZE;
                 RTS0_head++;
                 if (RTS0_head == SQ_SIZE)
@@ -2142,15 +2158,17 @@ void O3_CPU::operate_lsq()
     num_iteration = 0;
 
     //@Vishal: VIPT. Send request to L1D.
-
+    cout << load_issued << " " << LQ_WIDTH << endl;
     while (load_issued < LQ_WIDTH) {
+        cout << RTL0[RTL0_head] << " " << LQ_SIZE << endl;
         if (RTL0[RTL0_head] < LQ_SIZE) {
             uint32_t lq_index = RTL0[RTL0_head];
             if (LQ.entry[lq_index].event_cycle <= current_core_cycle[cpu]) {
-
+                cout << "dyinggggg" << endl;
             	int rq_index = execute_load(LQ.entry[lq_index].rob_index, lq_index, LQ.entry[lq_index].data_index);
-
+                cout << rq_index << endl;
             	if (rq_index != -2) {
+                    cout << "RTL0 is being updated " << RTL0_head << endl;
                     RTL0[RTL0_head] = LQ_SIZE;
 	                RTL0_head++;
 	                if (RTL0_head == LQ_SIZE)
