@@ -10,7 +10,7 @@ extern void notify_prefetch(uint64_t addr, uint64_t tag, uint32_t cpu, uint64_t 
 
 // PAGE
 extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
-
+extern std::vector<std::bitset<128>> keys;
 // CACHE TYPE
 #define IS_ITLB 0
 #define IS_DTLB 1
@@ -109,6 +109,8 @@ extern uint32_t PAGE_TABLE_LATENCY, SWAP_LATENCY;
 #define LLC_MSHR_SIZE NUM_CPUS * 64
 #define LLC_LATENCY 20 // 5 (L1I or L1D) + 10 + 20 = 35 cycles
 
+
+
 class CACHE : public MEMORY
 {
 public:
@@ -186,11 +188,13 @@ public:
         roi_miss[NUM_CPUS][NUM_TYPES],
         roi_instr_miss[NUM_CPUS][NUM_TYPES];
 
-    std::vector<std::bitset<128>> keys;
 
     uint64_t total_miss_latency;
 
+    uint64_t** evicted_indices;
+
     // constructor
+
     CACHE(string v1, uint32_t v2, int v3, uint32_t v4, uint32_t v5, uint32_t v6, uint32_t v7, uint32_t v8)
         : NAME(v1), NUM_SET(v2), NUM_WAY(v3), NUM_LINE(v4), WQ_SIZE(v5), RQ_SIZE(v6), PQ_SIZE(v7), MSHR_SIZE(v8)
     {
@@ -211,6 +215,19 @@ public:
                 block[i][j].ttl = 0;
             }
         }
+
+        //******//
+        evicted_indices = new uint64_t*[NUM_SET];
+        for(int i = 0; i < NUM_SET; i++)
+        {
+            evicted_indices[i] = new uint64_t[NUM_SET];
+            for(int j = 0; j < NUM_SET; j++)
+            {
+                evicted_indices[i][j] = 0;
+            }
+        }
+
+        //******//
 
         //******//
         keys = generate_keys(NUM_WAY);

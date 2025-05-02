@@ -327,6 +327,8 @@ void print_roi_stats(uint32_t cpu, CACHE *cache)
 #endif
 }
 
+bool printed = false;
+
 void print_sim_stats(uint32_t cpu, CACHE *cache)
 {
     uint64_t TOTAL_ACCESS = 0, TOTAL_HIT = 0, TOTAL_MISS = 0;
@@ -354,6 +356,19 @@ void print_sim_stats(uint32_t cpu, CACHE *cache)
 
     cout << cache->NAME;
     cout << " WRITEBACK ACCESS: " << setw(10) << cache->sim_access[cpu][3] << "  HIT: " << setw(10) << cache->sim_hit[cpu][3] << "  MISS: " << setw(10) << cache->sim_miss[cpu][3] << "  HIT %: " << setw(10) << ((double)cache->sim_hit[cpu][3] * 100 / cache->sim_access[cpu][3]) << "  MISS %: " << setw(10) << ((double)cache->sim_miss[cpu][3] * 100 / cache->sim_access[cpu][3]) << "   MPKI: " << ((double)cache->sim_miss[cpu][3] * 1000 / num_instrs) << endl;
+
+    if(cache->cache_type == IS_LLC)
+    {
+        if(!printed) printed = true;
+        else return;
+        for(int i=0;i<cache->NUM_SET;i++)
+        {
+            for(int j=0;j<cache->NUM_SET;j++)
+            {
+                cerr << i << " " << j << " " << cache->evicted_indices[i][j] << endl;
+            }
+        }
+    }
 }
 
 void print_branch_stats()
@@ -1441,18 +1456,20 @@ int main(int argc, char **argv)
     cout << "10 starting simulation" << endl;
     while (run_simulation)
     {
+        // cout << "running..." << endl;
         uint64_t elapsed_second = (uint64_t)(time(NULL) - start_time),
                  elapsed_minute = elapsed_second / 60,
                  elapsed_hour = elapsed_minute / 60;
         elapsed_minute -= elapsed_hour * 60;
         elapsed_second -= (elapsed_hour * 3600 + elapsed_minute * 60);
-
+        // if(elapsed_second%1000) cout << "running..." << endl;
         if (cs_index >= index)
             cs_index = -1;
 
         for (int i = 0; i < NUM_CPUS; i++)
         {
             // proceed one cycle
+            // cout << "cpu: " << i << endl;
             current_core_cycle[i]++;
 
             // Neelu: Capturing the phase-wise stats for dynamic energy.
@@ -1578,6 +1595,7 @@ int main(int argc, char **argv)
             // cout << " stall_cycle: " << stall_cycle[i] << " current: " << current_core_cycle[i] << endl;
 
             // core might be stalled due to page fault or branch misprediction
+            // cout << "stall cycle cmthg" << endl;
             if (stall_cycle[i] <= current_core_cycle[i])
             {
 
@@ -1600,11 +1618,14 @@ int main(int argc, char **argv)
 
                 // retire
                 // Neelu: Commented first condition.
+                cout << "reached the realm of death with " << ooo_cpu[i].ROB.head << endl;
+                cout << ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle << " " << current_core_cycle[i] << endl;
                 if (/*(ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].executed == COMPLETED) && */ (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle <= current_core_cycle[i]))
-                    ooo_cpu[i].retire_rob();
+                    ooo_cpu[i].retire_rob(); // executed is not being set as completed so not able to retire the current head of ROB
 
                 // complete
-                ooo_cpu[i].update_rob();
+                cout << "updating rob" << endl;
+                ooo_cpu[i].update_rob(); // not able to execute rob head bcs inflight_reg_executions is not being updated - this updation happens in do_execution which happens in execute_instruction
 
                 // schedule (including decode latency)
                 uint32_t schedule_index = ooo_cpu[i].ROB.next_schedule;
@@ -1612,7 +1633,10 @@ int main(int argc, char **argv)
                     ooo_cpu[i].schedule_instruction();
 
                 // execute
-                ooo_cpu[i].execute_instruction();
+                cout << "executing instruction" << endl;
+                ooo_cpu[i].execute_instruction(); // do execution not happening because RTE0[RTE0_head] and RTE1[RTE1_head] are not being updated to satisfy the if conditions - maybe happens in do_scheduling and reg_RAW_release
+                // reg_RAW_release -> complete execution -> update rob but not happening remember?
+                // do_scheduling -> schedule_instruction -> already needs to be fetched and shceduled should be 0
 
                 ooo_cpu[i].update_rob();
 
@@ -1629,19 +1653,20 @@ int main(int argc, char **argv)
                 }
 
                 // fetch
+                // cout << "fetch" << endl;
                 ooo_cpu[i].fetch_instruction();
 
                 // Neelu: Checking IFETCH Buffer occupancy as now instructions won't be added directly to ROB.
-                if ((ooo_cpu[i].IFETCH_BUFFER.occupancy < ooo_cpu[i].IFETCH_BUFFER.SIZE) && (ooo_cpu[i].fetch_stall == 0))
-                {
-                    ooo_cpu[i].read_from_trace();
-                }
+                // if ((ooo_cpu[i].IFETCH_BUFFER.occupancy < ooo_cpu[i].IFETCH_BUFFER.SIZE) && (ooo_cpu[i].fetch_stall == 0))
+                // {
+                //     ooo_cpu[i].read_from_trace();
+                // }
 
                 /*
                     Context-switch code
                     //If a core is involved in context-switch, check if ROB occupancy of this core as well as another core is 0. Also, if they have reached same current_core_cycle, swap the contexts of those two cores
                     */
-
+                // cout << "op index xmthg" << endl;
                 if (ooo_cpu[i].operating_index != -1)
                 {
                     cout << ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[0]].ROB.occupancy << " " << ooo_cpu[cs_file[ooo_cpu[i].operating_index].swap_cpu[1]].ROB.occupancy << " ";
@@ -1687,8 +1712,16 @@ int main(int argc, char **argv)
             // cout << "12 heartbeats done" << endl;
 
             // check for deadlock
+            
             if (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].ip && (ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle + DEADLOCK_CYCLE) <= current_core_cycle[i])
+            {
+                cout << ooo_cpu[i].ROB.head << endl
+                    << ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].ip << endl
+                    << ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle << endl
+                    << ooo_cpu[i].ROB.entry[ooo_cpu[i].ROB.head].event_cycle + DEADLOCK_CYCLE << endl
+                    << current_core_cycle[i] << endl;
                 print_deadlock(i);
+            }
 
             if (ooo_cpu[i].ROB.occupancy == 0)
             {

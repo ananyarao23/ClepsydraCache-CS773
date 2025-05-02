@@ -15,6 +15,9 @@ uint8_t L2C_BYPASS_KNOB = 0; // Neelu: Set to 1: Bypass Instructions 2: Bypass D
 // #define CHECK_DATA_HIT_ON_STLB_HIT	//Neelu: Adding to check where the corresponding data is present in case of an STLB hit
 
 // #define STLB_HINT_TO_L2_PREF
+
+std::vector<std::bitset<128>> keys;
+
 string get_type(uint8_t type)
 {
     if (type == IS_LLC)

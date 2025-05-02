@@ -189,6 +189,9 @@ class O3_CPU {
     }
 
     // functions
+    void inject_attack();
+    void handle_access(uint64_t,bool);
+
     void read_from_trace(),
 	    //handle_branch(), Neelu: Now it is read_from_trace.
          fetch_instruction(),
