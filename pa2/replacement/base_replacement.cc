@@ -153,6 +153,9 @@ uint32_t CACHE::ttl_victim(uint32_t cpu, uint64_t instr_id, uint32_t &set, uint6
     // no expired entry, randomly evict one
     int way = std::rand() % dynamic_set.size();
     new_set = dynamic_set[way] % NUM_SET;
+    int tag_bits = 64-log2(BLOCK_SIZE)-log2(NUM_SET);
+    uint64_t index = extract_index(full_addr,tag_bits,log2(NUM_SET));
+    evicted_indices[index][decode_addr(keys[way],new_set)]++;
 
     DP(if (warmup_complete[cpu]) {
         cout << "[" << NAME << "] " << __func__ << " instr_id: " << instr_id << " invalid set: " << new_set << " way: " << way;

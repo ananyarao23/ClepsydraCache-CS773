@@ -186,6 +186,7 @@ public:
         roi_miss[NUM_CPUS][NUM_TYPES],
         roi_instr_miss[NUM_CPUS][NUM_TYPES];
 
+    uint64_t** evicted_indices;
     std::vector<std::bitset<128>> keys;
 
     uint64_t total_miss_latency;
@@ -211,6 +212,20 @@ public:
                 block[i][j].ttl = 0;
             }
         }
+
+        //******//
+        evicted_indices = new uint64_t*[NUM_SET];
+        for(int i = 0; i < NUM_SET; i++)
+        {
+            evicted_indices[i] = new uint64_t[NUM_SET];
+            for(int j = 0; j < NUM_SET; j++)
+            {
+                evicted_indices[i][j] = 0;
+            }
+        }
+
+        //******//
+
 
         //******//
         keys = generate_keys(NUM_WAY);
@@ -257,14 +272,14 @@ public:
 
         // todododo
         lTTL = NUM_WAY * NUM_SET / 2;
-        uTTL = 5 * NUM_WAY * NUM_SET / 2;
-        rTTL = NUM_SET;
+        uTTL = 3 * NUM_WAY * NUM_SET / 2;
+        rTTL = NUM_SET/10;
         cout << NUM_WAY << " " << NUM_SET << endl;
         cout << NUM_WAY*NUM_SET << endl;
         cout << "[TTL] " << lTTL << " " << uTTL << endl;
         cout << rTTL << endl;
-        uRate = uTTL/5;
-        lRate =  NUM_SET/10;
+        uRate = uTTL;
+        lRate =  1;
         cout << uRate<<endl;
 
         //	pq_full = 0;

@@ -16,6 +16,7 @@ inline void set_nibble(std::bitset<64>& bits, int high_bit, uint8_t nibble) {
 uint64_t extract_tag(uint64_t address, int n);
 uint64_t extract_index(uint64_t address, int n, int k);
 uint32_t encode_addr(std::bitset<128> key, uint64_t text);
+uint64_t decode_addr(std::bitset<128> key, uint32_t cipher);
 std::vector<std::bitset<128>> generate_keys(size_t n);
 
 #endif // BIT_UTILS_HPP

@@ -327,6 +327,8 @@ void print_roi_stats(uint32_t cpu, CACHE *cache)
 #endif
 }
 
+bool printed = false;
+
 void print_sim_stats(uint32_t cpu, CACHE *cache)
 {
     uint64_t TOTAL_ACCESS = 0, TOTAL_HIT = 0, TOTAL_MISS = 0;
@@ -354,6 +356,20 @@ void print_sim_stats(uint32_t cpu, CACHE *cache)
 
     cout << cache->NAME;
     cout << " WRITEBACK ACCESS: " << setw(10) << cache->sim_access[cpu][3] << "  HIT: " << setw(10) << cache->sim_hit[cpu][3] << "  MISS: " << setw(10) << cache->sim_miss[cpu][3] << "  HIT %: " << setw(10) << ((double)cache->sim_hit[cpu][3] * 100 / cache->sim_access[cpu][3]) << "  MISS %: " << setw(10) << ((double)cache->sim_miss[cpu][3] * 100 / cache->sim_access[cpu][3]) << "   MPKI: " << ((double)cache->sim_miss[cpu][3] * 1000 / num_instrs) << endl;
+    // cerr << printed << ", printed bool" << endl;
+    cout << "Cyecles: " << current_core_cycle[cpu] << endl;
+    if(cache->cache_type == IS_LLC)
+    {
+        if(printed) return;
+        printed = true;
+        for(int i=0;i<cache->NUM_SET/10;i++)
+        {
+            for(int j=0;j<cache->NUM_SET/10;j++)
+            {
+                cerr << i << " " << j << " " << cache->evicted_indices[i][j] << endl;
+            }
+        }
+    }
 }
 
 void print_branch_stats()
